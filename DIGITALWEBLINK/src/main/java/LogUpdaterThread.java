@@ -20,22 +20,55 @@ public class LogUpdaterThread extends Thread {
 	}
 
 	@Override
-	public void run() {
-		try {
-			while (!Thread.interrupted()) {
-				// Sleep for 1 second
-				Thread.sleep(1000);
+    public void run() {
+        try {
+            while (!Thread.interrupted()) {
+                // Sleep for 1 second
+                Thread.sleep(1000);
 
-				// Check if the current app is the one being tracked by this thread
-				if (isActiveApp()) {
-					// Update the log file
-					updateLogFile();
-				}
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
+                // Check if the current app is the one being tracked by this thread
+                if (isActiveApp()) {
+                    // Check if the date has changed since the last update
+                    if (dateChanged()) {
+                        // If the date has changed, reset the startTime
+                        startTime = LocalDateTime.now();
+                    }
+
+                    // Update the log file
+                    updateLogFile();
+                }
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ... (existing code)
+
+    private boolean dateChanged() {
+        LocalDate currentDate = LocalDate.now();
+        LocalDate lastRecordedDate = getLastRecordedDate();
+        return !currentDate.equals(lastRecordedDate);
+    }
+
+    private LocalDate getLastRecordedDate() {
+        try {
+            List<String> lines = Files.readAllLines(Paths.get("total_time.txt"));
+
+            for (int i = lines.size() - 1; i >= 0; i--) {
+                String line = lines.get(i);
+                if (line.contains("Total time of " + appName)) {
+                    String dateString = line.split(" - ")[0];
+                    return LocalDate.parse(dateString, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // If no recorded date is found, return the current date
+        return LocalDate.now();
+    }
 
 	private boolean isActiveApp() {
 		ActiveAPP a = new ActiveAPP();
@@ -44,38 +77,40 @@ public class LogUpdaterThread extends Thread {
 	}
 
 	private void updateLogFile() {
-		// Read existing contents of total_time.txt
-		try {
-			List<String> lines = Files.readAllLines(Paths.get("total_time.txt"));
+	    // Read existing contents of total_time.txt
+	    try {
+	        List<String> lines = Files.readAllLines(Paths.get("total_time.txt"));
 
-			// Calculate total duration
-			long totalDuration = calculateTotalDuration();
+	        // Calculate total duration
+	        long totalDuration = calculateTotalDuration();
 
-			// Iterate over the lines to find and update the entry
-			boolean entryExists = false;
-			for (int i = 0; i < lines.size(); i++) {
-				String line = lines.get(i);
-				if (line.contains("Total time of " + appName)) {
-					// Upadate the total duration
-					lines.set(i, LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + " - Total time of "
-							+ appName + ": " + totalDuration + "s");
-					entryExists = true;
-					break;
-				}
-			}
+	        // Check if there is an entry for today
+	        boolean entryExistsForToday = false;
+	        String todayEntry = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+	                + " - Total time of " + appName + ": " + totalDuration + "s";
+	        for (int i = 0; i < lines.size(); i++) {
+	            String line = lines.get(i);
+	            if (line.startsWith(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
+	                    && line.contains("Total time of " + appName)) {
+	                // Update the total duration for today's entry
+	                lines.set(i, todayEntry);
+	                entryExistsForToday = true;
+	                break;
+	            }
+	        }
 
-			// If the entry doesn't exist, add a new one
-			if (!entryExists) {
-				lines.add(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + " - Total time of "
-						+ appName + ": " + totalDuration + "s");
-			}
+	        // If there is no entry for today, add a new one
+	        if (!entryExistsForToday) {
+	            lines.add(todayEntry);
+	        }
 
-			// Write the updated contents back to total_time.txt
-			Files.write(Paths.get("total_time.txt"), lines);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	        // Write the updated contents back to total_time.txt
+	        Files.write(Paths.get("total_time.txt"), lines);
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
 	}
+
 
 	private long calculateTotalDuration() {
 	    // Calculate the elapsed time since the start
