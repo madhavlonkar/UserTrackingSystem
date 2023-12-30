@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,17 +10,23 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class LogUpdaterThread extends Thread {
-	private final String appName;
-	private final FileWriter totalTimeWriter;
-	private LocalDateTime startTime;
+    private final String appName;
+    private final FileWriter totalTimeWriter;
+    private LocalDateTime startTime;
+    private String logFilePath = ""; // Define file path as a constant
 
-	public LogUpdaterThread(String appName, FileWriter totalTimeWriter) {
-		this.appName = appName;
-		this.totalTimeWriter = totalTimeWriter;
-		this.startTime =  LocalDateTime.now().minusSeconds(getLastRecordedSeconds());;
-	}
+    public LogUpdaterThread(String appName, FileWriter totalTimeWriter) {
+    	
+    	String userHome = System.getProperty("user.home");
+    	File folder = new File(userHome + File.separator + "UsageTracker");
+        logFilePath = folder.getPath() + File.separator + "total_time.txt";
+        
+        this.appName = appName;
+        this.totalTimeWriter = totalTimeWriter;
+        this.startTime = LocalDateTime.now().minusSeconds(getLastRecordedSeconds());
+    }
 
-	@Override
+    @Override
     public void run() {
         try {
             while (!Thread.interrupted()) {
@@ -53,7 +60,7 @@ public class LogUpdaterThread extends Thread {
 
     private LocalDate getLastRecordedDate() {
         try {
-            List<String> lines = Files.readAllLines(Paths.get("total_time.txt"));
+        	List<String> lines = Files.readAllLines(Paths.get(logFilePath));
 
             for (int i = lines.size() - 1; i >= 0; i--) {
                 String line = lines.get(i);
@@ -79,7 +86,7 @@ public class LogUpdaterThread extends Thread {
 	private void updateLogFile() {
 	    // Read existing contents of total_time.txt
 	    try {
-	        List<String> lines = Files.readAllLines(Paths.get("total_time.txt"));
+	    	List<String> lines = Files.readAllLines(Paths.get(logFilePath));
 
 	        // Calculate total duration
 	        long totalDuration = calculateTotalDuration();
@@ -105,7 +112,7 @@ public class LogUpdaterThread extends Thread {
 	        }
 
 	        // Write the updated contents back to total_time.txt
-	        Files.write(Paths.get("total_time.txt"), lines);
+	        Files.write(Paths.get(logFilePath), lines);
 	    } catch (IOException e) {
 	        e.printStackTrace();
 	    }
@@ -123,7 +130,7 @@ public class LogUpdaterThread extends Thread {
 
 	private long getLastRecordedSeconds() {
 	    try {
-	        List<String> lines = Files.readAllLines(Paths.get("total_time.txt"));
+	    	List<String> lines = Files.readAllLines(Paths.get(logFilePath));
 
 	        for (int i = lines.size() - 1; i >= 0; i--) {
 	            String line = lines.get(i);
