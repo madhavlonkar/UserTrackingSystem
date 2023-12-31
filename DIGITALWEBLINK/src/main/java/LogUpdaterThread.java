@@ -84,28 +84,43 @@ public class LogUpdaterThread extends Thread {
 
             // Calculate total duration
             long totalDuration = 0;
-
+            String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String logEntryToSearch ="Total time of " + appName;
             // Find the entry for the current app
             int entryIndex = -1;
             for (int i = 0; i < lines.size(); i++) {
                 String line = lines.get(i);
-                if (line.contains("Total time of " + appName)) {
+                String entryDate = line.split(" ")[0]; 
+                if (entryDate.equals(currentDate) && line.contains(logEntryToSearch)) {
                     entryIndex = i;
                     totalDuration = calculateTotalDuration(line);
                     break;
                 }
             }
 
-            // Update the total duration for the current app
-            totalDuration++;
-            String todayEntry = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a"))
-                    + " - Total time of " + appName + ": " + totalDuration + "s";
-
-            if (entryIndex != -1) {
-                // Update the existing entry
-                lines.set(entryIndex, todayEntry);
+            // Check if the date has changed since the last update
+            if (dateChanged()) {
+                // If the date has changed, create a new entry with total duration starting from 1
+                totalDuration = 1;
+                String todayEntry = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a"))
+                        + " - Total time of " + appName + ": " + totalDuration + "s";
+                
+                // Remove the entry for the current app if it already exists
+//                if (entryIndex != -1) {
+//                    lines.remove(entryIndex);
+//                }
+                
+                lines.add(todayEntry);
+            } else if (entryIndex != -1) {
+                // Update the total duration for the current app
+                totalDuration = calculateTotalDuration(lines.get(entryIndex)) + 1;
+                String updatedEntry = lines.get(entryIndex).split(" - ")[0] + " - Total time of " + appName + ": " + totalDuration + "s";
+                lines.set(entryIndex, updatedEntry);
             } else {
                 // If no entry for the current app exists, add a new one
+                totalDuration = 1;
+                String todayEntry = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a"))
+                        + " - Total time of " + appName + ": " + totalDuration + "s";
                 lines.add(todayEntry);
             }
 
@@ -115,6 +130,11 @@ public class LogUpdaterThread extends Thread {
             e.printStackTrace();
         }
     }
+
+
+
+
+
 
     private long calculateTotalDuration(String line) {
         long lastRecordedSeconds = getLastRecordedSeconds(line);

@@ -1,10 +1,12 @@
-<project xmlns="https://maven.apache.org/POM/4.0.0" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>com.zplus</groupId>
-  <artifactId>DIGITALWEBLINK</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <dependencies>
-	  <dependency>
+<project xmlns="https://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="https://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.zplus</groupId>
+	<artifactId>DIGITALWEBLINK</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<dependencies>
+		<dependency>
 			<groupId>com.sun.jna</groupId>
 			<artifactId>jna</artifactId>
 			<version>3.0.9</version>
@@ -14,5 +16,9 @@
 			<artifactId>platform</artifactId>
 			<version>3.5.2</version>
 		</dependency>
-  </dependencies>
+
+		
+
+
+	</dependencies>
 </project>
