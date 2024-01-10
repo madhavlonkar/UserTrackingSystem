@@ -3,15 +3,30 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Key;
+import java.security.spec.KeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.List;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 
 public class LogUpdaterThread extends Thread {
     private final String appName;
     private final FileWriter totalTimeWriter;
     private LocalDateTime startTime;
     private String logFilePath = "";
+    private Cipher encryptCipher;
+    private Cipher decryptCipher;
+
+    // Change this key and salt to your own secret key
+    private static final String SECRET_KEY = "ZPLUS";
+    private static final String SALT = "Maddy";
 
     public LogUpdaterThread(String appName, FileWriter totalTimeWriter) {
         String userHome = System.getProperty("user.home");
@@ -20,8 +35,12 @@ public class LogUpdaterThread extends Thread {
 
         this.appName = appName;
         this.totalTimeWriter = totalTimeWriter;
+
+        // Initialize ciphers with the secret key
+        cipherInit();
         this.startTime = getLastRecordedDateTime();
     }
+
 
     @Override
     public void run() {
@@ -47,6 +66,27 @@ public class LogUpdaterThread extends Thread {
         }
     }
 
+    private void cipherInit() {
+        try {
+            // Derive the key from the password and salt
+            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            KeySpec spec = new PBEKeySpec(SECRET_KEY.toCharArray(), SALT.getBytes(), 65536, 256);
+            SecretKey tmp = factory.generateSecret(spec);
+            SecretKey secret = new SecretKeySpec(tmp.getEncoded(), "AES");
+
+            // Initialize encrypt cipher
+            encryptCipher = Cipher.getInstance("AES");
+            encryptCipher.init(Cipher.ENCRYPT_MODE, secret);
+
+            // Initialize decrypt cipher
+            decryptCipher = Cipher.getInstance("AES");
+            decryptCipher.init(Cipher.DECRYPT_MODE, secret);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private boolean dateChanged() {
         LocalDateTime currentDateTime = LocalDateTime.now();
         LocalDateTime lastRecordedDateTime = getLastRecordedDateTime();
@@ -58,9 +98,11 @@ public class LogUpdaterThread extends Thread {
             List<String> lines = Files.readAllLines(Paths.get(logFilePath));
 
             for (int i = lines.size() - 1; i >= 0; i--) {
-                String line = lines.get(i);
-                if (line.contains("Total time of " + appName)) {
-                    String dateTimeString = line.split(" - ")[0];
+                String encryptedLine = lines.get(i);
+                String decryptedLine = decrypt(encryptedLine);
+
+                if (decryptedLine.contains("Total time of " + appName)) {
+                    String dateTimeString = decryptedLine.split(" - ")[0];
                     return LocalDateTime.parse(dateTimeString, DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a"));
                 }
             }
@@ -85,12 +127,16 @@ public class LogUpdaterThread extends Thread {
             // Calculate total duration
             long totalDuration = 0;
             String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            String logEntryToSearch ="Total time of " + appName;
+            String logEntryToSearch = "Total time of " + appName;
+
             // Find the entry for the current app
             int entryIndex = -1;
             for (int i = 0; i < lines.size(); i++) {
-                String line = lines.get(i);
-                String entryDate = line.split(" ")[0]; 
+                String encryptedLine = lines.get(i);
+                String decryptedLine = decrypt(encryptedLine);
+                String line = decryptedLine;
+
+                String entryDate = line.split(" ")[0];
                 if (entryDate.equals(currentDate) && line.contains(logEntryToSearch)) {
                     entryIndex = i;
                     totalDuration = calculateTotalDuration(line);
@@ -104,24 +150,24 @@ public class LogUpdaterThread extends Thread {
                 totalDuration = 1;
                 String todayEntry = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a"))
                         + " - Total time of " + appName + ": " + totalDuration + "s";
-                
+
                 // Remove the entry for the current app if it already exists
-//                if (entryIndex != -1) {
-//                    lines.remove(entryIndex);
-//                }
-                
-                lines.add(todayEntry);
+                // if (entryIndex != -1) {
+                //     lines.remove(entryIndex);
+                // }
+
+                lines.add(encrypt(todayEntry));
             } else if (entryIndex != -1) {
                 // Update the total duration for the current app
-                totalDuration = calculateTotalDuration(lines.get(entryIndex)) + 1;
-                String updatedEntry = lines.get(entryIndex).split(" - ")[0] + " - Total time of " + appName + ": " + totalDuration + "s";
-                lines.set(entryIndex, updatedEntry);
+                totalDuration = calculateTotalDuration(decrypt(lines.get(entryIndex))) + 1;
+                String updatedEntry = decrypt(lines.get(entryIndex)).split(" - ")[0] + " - Total time of " + appName + ": " + totalDuration + "s";
+                lines.set(entryIndex, encrypt(updatedEntry));
             } else {
                 // If no entry for the current app exists, add a new one
                 totalDuration = 1;
                 String todayEntry = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a"))
                         + " - Total time of " + appName + ": " + totalDuration + "s";
-                lines.add(todayEntry);
+                lines.add(encrypt(todayEntry));
             }
 
             // Write the updated contents back to total_time.txt
@@ -131,10 +177,26 @@ public class LogUpdaterThread extends Thread {
         }
     }
 
+    private String encrypt(String data) {
+        try {
+            byte[] encryptedBytes = encryptCipher.doFinal(data.getBytes());
+            return Base64.getEncoder().encodeToString(encryptedBytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
-
-
-
+    private String decrypt(String encryptedData) {
+        try {
+            byte[] encryptedBytes = Base64.getDecoder().decode(encryptedData);
+            byte[] decryptedBytes = decryptCipher.doFinal(encryptedBytes);
+            return new String(decryptedBytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     private long calculateTotalDuration(String line) {
         long lastRecordedSeconds = getLastRecordedSeconds(line);
