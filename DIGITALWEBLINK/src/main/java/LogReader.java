@@ -16,8 +16,9 @@ public class LogReader {
     private static final String SECRET_KEY = "ZPLUS";
     private static final String SALT = "Maddy";
 
-    public static void main(String[] args) {
-        try {
+    public static void decryptLogFile()
+    {
+    	try {
             String userHome = System.getProperty("user.home");
             String logFilePath = userHome + "/UsageTracker/total_time.txt";
             String decryptedLogsPath = userHome + "/UsageTracker/decrypted_logs.txt";
@@ -27,14 +28,13 @@ public class LogReader {
             try (FileWriter writer = new FileWriter(decryptedLogsPath)) {
                 for (String encryptedLine : lines) {
                     String decryptedLine = decrypt(encryptedLine);
-                    System.out.println(decryptedLine);
+//                    System.out.println(decryptedLine);
                     writer.write(decryptedLine + System.lineSeparator());
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-            System.out.println("Decrypted logs have been written to: " + decryptedLogsPath);
         } catch (IOException e) {
             e.printStackTrace();
         }
