@@ -29,7 +29,7 @@ public class EmailLogs {
         // Create all the needed properties
         Properties connectionProperties = new Properties();
         // SMTP host
-        connectionProperties.put("mail.smtp.host", "smtp-relay.sendinblue.com");
+        connectionProperties.put("mail.smtp.host", "smtp.com");
         // Is authentication enabled
         connectionProperties.put("mail.smtp.auth", "true");
         // Is TLS enabled
@@ -45,7 +45,7 @@ public class EmailLogs {
         // Create the session
         Session session = Session.getDefaultInstance(connectionProperties, new javax.mail.Authenticator() { // Define the authenticator
             protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication("vayavi6626@yasiok.com", "ZDgPTAzQnXOcsESY");
+                return new PasswordAuthentication("username", "password");
             }
         });
 
